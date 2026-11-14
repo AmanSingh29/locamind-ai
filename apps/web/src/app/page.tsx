@@ -1,69 +1,127 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import { sendMessage } from "@/services/chat.service";
+import { ChatMessage } from "@/types/chat";
 
 export default function Home() {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSend() {
+    const message = input.trim();
+
+    if (!message || loading) return;
+
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: message,
+      createdAt: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    setLoading(true);
+
+    try {
+      const result = await sendMessage(message);
+
+      const assistantMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: result.data?.response || "No response received.",
+        createdAt: new Date(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content:
+          error instanceof Error
+            ? `Error: ${error.message}`
+            : "Something went wrong.",
+        createdAt: new Date(),
+      };
+
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main className="flex min-h-screen flex-col bg-[#0b0d12] text-white">
+      <header className="border-b border-white/10 px-6 py-4">
+        <h1 className="text-xl font-semibold">LocalMind AI</h1>
+        <p className="text-sm text-gray-400">Your private local AI assistant</p>
+      </header>
+
+      <section className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-5 overflow-y-auto px-5 py-8">
+        {messages.length === 0 && (
+          <div className="m-auto text-center">
+            <h2 className="text-3xl font-semibold">Welcome to LocalMind AI</h2>
+            <p className="mt-3 text-gray-400">
+              Ask anything. Your AI runs locally.
+            </p>
+          </div>
+        )}
+
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={`max-w-[85%] rounded-2xl px-5 py-3 ${
+              message.role === "user"
+                ? "ml-auto bg-blue-600"
+                : "mr-auto bg-[#1b1e27]"
+            }`}
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <p className="mb-2 text-xs font-semibold uppercase text-gray-300">
+              {message.role === "user" ? "You" : "LocalMind AI"}
+            </p>
+            <p className="whitespace-pre-wrap leading-7">{message.content}</p>
+          </div>
+        ))}
+
+        {loading && (
+          <div className="mr-auto rounded-xl bg-[#1b1e27] px-5 py-3 text-gray-400">
+            LocalMind is thinking...
+          </div>
+        )}
+      </section>
+
+      <footer className="mx-auto w-full max-w-4xl px-5 pb-6">
+        <div className="flex gap-3 rounded-2xl border border-white/10 bg-[#171a22] p-3">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder="Ask LocalMind anything..."
+            rows={2}
+            className="flex-1 resize-none bg-transparent p-2 outline-none"
+          />
+
+          <button
+            onClick={handleSend}
+            disabled={loading || !input.trim()}
+            className="self-end rounded-xl bg-blue-600 px-5 py-3 font-medium hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Documentation
-          </a>
+            Send
+          </button>
         </div>
-      </main>
-    </div>
+
+        <p className="mt-2 text-center text-xs text-gray-500">
+          Powered by Ollama · Local inference
+        </p>
+      </footer>
+    </main>
   );
 }
